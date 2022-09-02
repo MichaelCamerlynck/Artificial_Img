@@ -58,17 +58,17 @@ async def send_tweet(message_id, connection):
     response = requests.get(url)
     img = BytesIO(response.content)
 
-    # auth = tweepy.OAuth1UserHandler(
-    #     consumer_key, consumer_secret, access_token, access_token_secret
-    # )
-    #
-    # api = tweepy.API(auth)
-    #
-    # api.update_status_with_media(
-    #     status="",
-    #     filename="img",
-    #     file=img
-    # )
+    auth = tweepy.OAuth1UserHandler(
+        consumer_key, consumer_secret, access_token, access_token_secret
+    )
+
+    api = tweepy.API(auth)
+
+    api.update_status_with_media(
+        status="#Midjourney",
+        filename="img",
+        file=img
+    )
 
     cursor.execute(f"update images set uploaded = 1 where id = {message_id}")
     connection.commit()
