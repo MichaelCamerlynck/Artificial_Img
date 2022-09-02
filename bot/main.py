@@ -49,6 +49,7 @@ def create_connection():
     return connection
 
 async def send_tweet(message_id, connection):
+    print("Tweeting Image")
     cursor = connection.cursor()
     log = client.get_channel(1014925532346974329)
 
@@ -64,16 +65,20 @@ async def send_tweet(message_id, connection):
 
     api = tweepy.API(auth)
 
-    api.update_status_with_media(
-        status="#Midjourney",
-        filename="img",
+    media = api.media_upload(
+        filename="img.png",
         file=img
+    )
+
+    api.update_status(
+        status=" #Midjourney",
+        media_ids=[media.media_id]
     )
 
     cursor.execute(f"update images set uploaded = 1 where id = {message_id}")
     connection.commit()
 
-    await log.send(content="Image tweeted", file=discord.File(fp=img, filename="img.png"))
+    await log.send(content="Image tweeted", file=discord.File(fp=BytesIO(response.content), filename="img.png"))
 
     print("tweeted")
 
