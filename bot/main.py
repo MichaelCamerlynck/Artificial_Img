@@ -184,8 +184,6 @@ async def on_raw_reaction_add(payload):
                 message = await client.get_channel(imagine_channel).fetch_message(payload.message_id)
                 await message.delete()
 
-
-
 @tasks.loop(hours=4)
 async def send_automated_tweet():
     connection = create_connection()
@@ -197,7 +195,7 @@ async def send_automated_tweet():
     if uploaded:
         cursor.execute(f"select id from images where uploaded = 0 order by rand() limit 1")
         message_id = cursor.fetchone()[0]
-        print("random")
+        print(message_id)
 
     await send_tweet(message_id, connection)
     connection.close()
