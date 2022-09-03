@@ -5,10 +5,8 @@ import mysql.connector
 from mysql.connector import Error
 from dotenv import load_dotenv
 import tweepy
-from PIL import Image
 import requests
 from io import BytesIO
-
 
 load_dotenv()
 
@@ -52,11 +50,14 @@ async def send_tweet(message_id, connection):
     print("Tweeting Image")
     cursor = connection.cursor()
     log = client.get_channel(1014925532346974329)
+    favorites = client.get_channel(favorite_channel)
+    message = await favorites.fetch_message(message_id)
 
     cursor.execute(f"select url from images where id = {message_id}")
     url = cursor.fetchone()[0]
 
     response = requests.get(url)
+    print(url)
     img = BytesIO(response.content)
 
     auth = tweepy.OAuth1UserHandler(
@@ -71,15 +72,15 @@ async def send_tweet(message_id, connection):
     )
 
     api.update_status(
-        status=" #Midjourney",
+        status=" #Midjourney #AIart",
         media_ids=[media.media_id]
     )
 
     cursor.execute(f"update images set uploaded = 1 where id = {message_id}")
     connection.commit()
 
+    await message.add_reaction("👍")
     await log.send(content="Image tweeted", file=discord.File(fp=BytesIO(response.content), filename="img.png"))
-
     print("tweeted")
 
 @client.event
@@ -100,9 +101,20 @@ async def on_message(message):
             if "%" not in message.content:
                 await message.add_reaction("🔻")
 
+        if message.author.id == 622098365806542868:
+            if message.content == "clear":
+                channel = client.get_channel(imagine_channel)
+                messages = []
+                async for message in channel.history():
+                    messages.append(message)
+
+                await channel.delete_messages(messages)
+                await client.get_channel(1014925532346974329).send("Imagine Cleared")
+
     # finished-images
     if message.channel.id == finished_channel:
         await message.add_reaction("❤")
+        await message.add_reaction("❌")
 
     # favorites
     if message.channel.id == favorite_channel:
@@ -124,13 +136,19 @@ async def on_raw_reaction_add(payload):
         log = client.get_channel(1014925532346974329)
 
         # finished-images
-        if payload.channel_id == finished_channel and payload.emoji.name == "❤":
-            # move image to favorites and add it to database
+        if payload.channel_id == finished_channel:
             message = await finished_images.fetch_message(payload.message_id)
-            await message.delete()
-            url = message.attachments[0]
-            image = await url.to_file()
-            await favorites.send(file=image)
+
+            # move image to favorites and add it to database
+            if payload.emoji.name == "❤":
+                await message.delete()
+                url = message.attachments[0]
+                image = await url.to_file()
+                await favorites.send(file=image)
+
+            # delete image
+            if payload.emoji.name == "❌":
+                await message.delete()
 
         # favorites
         if payload.channel_id == favorite_channel:
@@ -142,7 +160,6 @@ async def on_raw_reaction_add(payload):
             # send tweet
             if payload.emoji.name == "⬆":
                 await send_tweet(message.id, connection)
-                await message.add_reaction("👍")
 
             # move image to finished-images and delete from database
             if payload.emoji.name == "❌":
@@ -167,6 +184,8 @@ async def on_raw_reaction_add(payload):
                 message = await client.get_channel(imagine_channel).fetch_message(payload.message_id)
                 await message.delete()
 
+
+
 @tasks.loop(hours=4)
 async def send_automated_tweet():
     connection = create_connection()
@@ -176,7 +195,7 @@ async def send_automated_tweet():
     uploaded, message_id = cursor.fetchone()
 
     if uploaded:
-        cursor.execute(f"select id from images order by rand() limit 1")
+        cursor.execute(f"select id from images where uploaded = 0 order by rand() limit 1")
         message_id = cursor.fetchone()[0]
         print("random")
 
