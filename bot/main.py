@@ -52,6 +52,7 @@ async def send_tweet(message_id, connection):
     log = client.get_channel(1014925532346974329)
     favorites = client.get_channel(favorite_channel)
     message = await favorites.fetch_message(message_id)
+    text = message.content + " #midjourney #AIart"
 
     cursor.execute(f"select url from images where id = {message_id}")
     url = cursor.fetchone()[0]
@@ -72,7 +73,7 @@ async def send_tweet(message_id, connection):
     )
 
     api.update_status(
-        status=" #Midjourney #AIart",
+        status=text,
         media_ids=[media.media_id]
     )
 
@@ -102,7 +103,7 @@ async def on_message(message):
                 await message.add_reaction("🔻")
 
         if message.author.id == 622098365806542868:
-            if message.content == "clear":
+            if message.content == "clear" or message.content == "Clear":
                 channel = client.get_channel(imagine_channel)
                 messages = []
                 async for message in channel.history():
@@ -118,15 +119,21 @@ async def on_message(message):
 
     # favorites
     if message.channel.id == favorite_channel:
-        await message.add_reaction("❌")
-        await message.add_reaction("⏲")
-        await message.add_reaction("⬆")
+        if message.reference:
+            text = message.content
+            ori_msg = await client.get_channel(favorite_channel).fetch_message(message.reference.message_id)
+            await ori_msg.edit(content=text)
+            await message.delete()
+        else:
+            await message.add_reaction("❌")
+            await message.add_reaction("⏲")
+            await message.add_reaction("⬆")
 
-        connection = create_connection()
-        cursor = connection.cursor()
-        cursor.execute(f'insert into images (id, url, uploaded) values ({message.id}, "{message.attachments[0].url}", 0)')
-        connection.commit()
-        connection.close()
+            connection = create_connection()
+            cursor = connection.cursor()
+            cursor.execute(f'insert into images (id, url, uploaded) values ({message.id}, "{message.attachments[0].url}", 0)')
+            connection.commit()
+            connection.close()
 
 @client.event
 async def on_raw_reaction_add(payload):
@@ -186,16 +193,19 @@ async def on_raw_reaction_add(payload):
 
 @tasks.loop(hours=4)
 async def send_automated_tweet():
+    print("sending automated tweet")
     connection = create_connection()
     cursor = connection.cursor()
 
     cursor.execute(f"select uploaded, id from images where id = (select id from latest)")
     uploaded, message_id = cursor.fetchone()
+    print(uploaded, message_id, "ids")
 
     if uploaded:
+        print("latest, uploaded getting random")
         cursor.execute(f"select id from images where uploaded = 0 order by rand() limit 1")
         message_id = cursor.fetchone()[0]
-        print(message_id)
+        print(message_id, "new image to upload")
 
     await send_tweet(message_id, connection)
     connection.close()
