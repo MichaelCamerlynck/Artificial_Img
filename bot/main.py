@@ -110,7 +110,7 @@ async def on_message(message):
                     messages.append(message)
 
                 await channel.delete_messages(messages)
-                await client.get_channel(1014925532346974329).send("Imagine Cleared")
+                # await client.get_channel(1014925532346974329).send("Imagine Cleared")
 
     # finished-images
     if message.channel.id == finished_channel:
@@ -191,7 +191,7 @@ async def on_raw_reaction_add(payload):
                 message = await client.get_channel(imagine_channel).fetch_message(payload.message_id)
                 await message.delete()
 
-@tasks.loop(hours=4)
+@tasks.loop(hours=12)
 async def send_automated_tweet():
     print("sending automated tweet")
     connection = create_connection()
