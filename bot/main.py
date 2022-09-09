@@ -102,7 +102,7 @@ async def on_ready():
     await tree.sync(guild=discord.Object(id=835215905180483594))
     update_prompt_channels()
     print("BOT ONLINE")
-    #send_automated_tweet.start()
+    send_automated_tweet.start()
 
 @tree.command(name="create", description="creates new channel", guild=discord.Object(id=835215905180483594))
 async def self(interaction: discord.Interaction, name: str):
@@ -205,7 +205,7 @@ async def on_raw_reaction_add(payload):
                 connection.close()
 
         # imagine
-        if payload.channel_id == imagine_channel:
+        if payload.channel_id in prompt_channels:
             if payload.emoji.name == "🔻":
                 message = await client.get_channel(imagine_channel).fetch_message(payload.message_id)
                 await message.delete()
