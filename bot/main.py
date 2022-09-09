@@ -1,5 +1,6 @@
 import discord
 from discord.ext import tasks
+from discord import app_commands
 import os
 import mysql.connector
 from mysql.connector import Error
@@ -17,6 +18,8 @@ intents.members = True
 intents.presences = True
 client = discord.Client(intents=intents)
 
+tree = app_commands.CommandTree(client)
+
 host = os.getenv("HOST_NAME")
 username = os.getenv("USER_NAME")
 password = os.getenv("PASSWD")
@@ -30,6 +33,8 @@ access_token_secret = os.getenv("ATS")
 imagine_channel = 1014839638445277197
 favorite_channel = 1014898112780836935
 finished_channel = 1014839203164598282
+
+prompt_channels = []
 
 def create_connection():
     connection = None
@@ -84,15 +89,39 @@ async def send_tweet(message_id, connection):
     await log.send(content="Image tweeted", file=discord.File(fp=BytesIO(response.content), filename="img.png"))
     print("tweeted")
 
+def update_prompt_channels():
+    guild = client.get_guild(835215905180483594)
+    category = discord.utils.get(guild.categories, id=1017594346582851634)
+    channels = category.channels
+    for channel in channels:
+        prompt_channels.append(channel.id)
+
+
 @client.event
 async def on_ready():
+    await tree.sync(guild=discord.Object(id=835215905180483594))
+    update_prompt_channels()
     print("BOT ONLINE")
-    send_automated_tweet.start()
+    #send_automated_tweet.start()
+
+@tree.command(name="create", description="creates new channel", guild=discord.Object(id=835215905180483594))
+async def self(interaction: discord.Interaction, name: str):
+    guild = interaction.guild
+    category = discord.utils.find(lambda c: c.id == 1017594346582851634, guild.channels)
+    channel = await guild.create_text_channel(name, category=category)
+    prompt_channels.append(channel.id)
+
+    await interaction.response.send_message(f"Created channel {name}!")
+
+@tree.command(name="delete", description="deletes channel", guild=discord.Object(id=835215905180483594))
+async def self(interaction: discord.Interaction):
+    if interaction.channel_id in prompt_channels:
+        await interaction.channel.delete()
 
 @client.event
 async def on_message(message):
-    # imagine
-    if message.channel.id == imagine_channel:
+    # prompt channels
+    if message.channel.id in prompt_channels:
         if message.author.id == 936929561302675456:
             if "Upscaled" in message.content:
                 finished_images = client.get_channel(finished_channel)
@@ -101,16 +130,6 @@ async def on_message(message):
 
             if "%" not in message.content:
                 await message.add_reaction("🔻")
-
-        if message.author.id == 622098365806542868:
-            if message.content == "clear" or message.content == "Clear":
-                channel = client.get_channel(imagine_channel)
-                messages = []
-                async for message in channel.history():
-                    messages.append(message)
-
-                await channel.delete_messages(messages)
-                # await client.get_channel(1014925532346974329).send("Imagine Cleared")
 
     # finished-images
     if message.channel.id == finished_channel:
