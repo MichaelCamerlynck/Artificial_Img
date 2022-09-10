@@ -1,8 +1,5 @@
-import asyncio
-import datetime
-import dateutil.tz
 import discord
-from discord.ext import tasks, commands
+from discord.ext import tasks
 from discord import app_commands
 import os
 import mysql.connector
@@ -11,7 +8,6 @@ from dotenv import load_dotenv
 import tweepy
 import requests
 from io import BytesIO
-import pytz
 
 load_dotenv()
 
@@ -37,16 +33,8 @@ access_token_secret = os.getenv("ATS")
 imagine_channel = 1014839638445277197
 favorite_channel = 1014898112780836935
 finished_channel = 1014839203164598282
+
 prompt_channels = []
-
-# temporary solution
-tweet_time = ["08:45:00"]
-timer = []
-timezone = dateutil.tz.gettz("Asia/Singapore")
-for time in tweet_time:
-    hour, minute, second = [int(x) for x in time.split(":")]
-    timer.append(datetime.time(hour=hour,minute=minute,second=second,tzinfo=timezone))
-
 
 def create_connection():
     connection = None
@@ -108,12 +96,13 @@ def update_prompt_channels():
     for channel in channels:
         prompt_channels.append(channel.id)
 
+
 @client.event
 async def on_ready():
     await tree.sync(guild=discord.Object(id=835215905180483594))
     update_prompt_channels()
-    send_automated_tweet.start()
     print("BOT ONLINE")
+    send_automated_tweet.start()
 
 @tree.command(name="create", description="creates new channel", guild=discord.Object(id=835215905180483594))
 async def self(interaction: discord.Interaction, name: str):
@@ -122,39 +111,12 @@ async def self(interaction: discord.Interaction, name: str):
     channel = await guild.create_text_channel(name, category=category)
     prompt_channels.append(channel.id)
 
-    await interaction.response.send_message(f"Created channel **{name}**!")
+    await interaction.response.send_message(f"Created channel {name}!")
 
 @tree.command(name="delete", description="deletes channel", guild=discord.Object(id=835215905180483594))
 async def self(interaction: discord.Interaction):
     if interaction.channel_id in prompt_channels:
         await interaction.channel.delete()
-
-@tree.command(name="archive", description="moves channel to archived category", guild=discord.Object(id=835215905180483594))
-async def self(interaction: discord.Interaction):
-    if interaction.channel_id in prompt_channels:
-        archived = discord.utils.get(interaction.guild.categories, id=1017748834610327616)
-        await interaction.channel.move(category=archived, beginning=True)
-        await client.get_channel(1014925532346974329).send(f"**{interaction.channel.name}** archived!")
-        await interaction.response.send_message("Channel Archived")
-
-@tree.command(name="clear", description="clear the channel", guild=discord.Object(id=835215905180483594))
-async def self(interaction: discord.Interaction):
-    if interaction.channel_id in prompt_channels or interaction.channel_id == 1014839638445277197:
-        await interaction.channel.purge()
-
-@tree.command(name="timezone", description="changes timezone", guild=discord.Object(id=835215905180483594))
-async def self(interaction: discord.Interaction, timezone: str):
-    connection = create_connection()
-    cursor = connection.cursor()
-
-    cursor.execute(f"update latest set timezone = '{timezone}'")
-    connection.commit()
-
-    await interaction.response.send_message("Timezone updated")
-
-@tree.command(name="timer", description="sets time to tweet", guild=discord.Object(id=835215905180483594))
-async def self(interaction: discord.Interaction):
-    await interaction.response.send_message(f"Next run: {send_automated_tweet.next_iteration}")
 
 @client.event
 async def on_message(message):
@@ -176,7 +138,6 @@ async def on_message(message):
 
     # favorites
     if message.channel.id == favorite_channel:
-        # rename an image
         if message.reference:
             text = message.content
             ori_msg = await client.get_channel(favorite_channel).fetch_message(message.reference.message_id)
@@ -249,7 +210,7 @@ async def on_raw_reaction_add(payload):
                 message = await client.get_channel(imagine_channel).fetch_message(payload.message_id)
                 await message.delete()
 
-@tasks.loop(time=timer)
+@tasks.loop(hours=12)
 async def send_automated_tweet():
     print("sending automated tweet")
     connection = create_connection()
