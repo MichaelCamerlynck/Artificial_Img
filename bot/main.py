@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 import tweepy
 import requests
 from io import BytesIO
-import pytz
+#import pytz
 
 load_dotenv()
 
