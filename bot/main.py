@@ -246,7 +246,7 @@ async def on_raw_reaction_add(payload):
         # imagine
         if payload.channel_id in prompt_channels:
             if payload.emoji.name == "🔻":
-                message = await client.get_channel(imagine_channel).fetch_message(payload.message_id)
+                message = await client.get_channel(payload.channel_id).fetch_message(payload.message_id)
                 await message.delete()
 
 @tasks.loop(time=timer)
