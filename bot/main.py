@@ -154,7 +154,7 @@ async def self(interaction: discord.Interaction, timezone: str):
 
 @tree.command(name="timer", description="sets time to tweet", guild=discord.Object(id=835215905180483594))
 async def self(interaction: discord.Interaction):
-    await interaction.response.send_message(f"Next run: {send_automated_tweet.next_iteration}")
+    await interaction.response.send_message(f"Next run: {send_automated_tweet.next_iteration}", ephemeral=True)
 
 @client.event
 async def on_message(message):
@@ -251,7 +251,7 @@ async def on_raw_reaction_add(payload):
 
 @tasks.loop(time=timer)
 async def send_automated_tweet():
-    print("sending automated tweet") 
+    print("sending automated tweet")
     connection = create_connection()
     cursor = connection.cursor()
 
